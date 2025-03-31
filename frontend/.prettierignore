@@ -1,0 +1,42 @@
+# Ignore the node_modules directory
+node_modules/
+
+# Ignore the .next directory (Next.js build output)
+.next/
+
+# Ignore Husky configuration files
+.husky/
+
+# Ignore coverage reports
+coverage/
+
+# Ignore prettier configuration
+.prettierignore/
+
+# Ignore stylelint configuration
+.stylelintignore/
+
+# Ignore ESLint configuration files
+.eslintignore/
+
+# Ignore Storybook configuration and generated static files
+stories/
+storybook-static/
+
+# Ignore log files
+*.log
+
+# Ignore Playwright reports
+playwright-report/
+
+# Ignore NYC output (coverage tool)
+.nyc_output/
+
+# Ignore test result files
+test-results/
+
+# Ignore Jest or other test tools' XML reports
+junit.xml
+
+# Ignore documentation folders
+docs/
