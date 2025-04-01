@@ -22,7 +22,7 @@ Client = Table(
         server_default=text("gen_random_uuid()"),
     ),
     Column("name", String(255), nullable=False),
-    Column("owner_id", ForeignKey("users.id", ondelete="RESTRICT"), nullable=True),
+    Column("owner_id", ForeignKey("users.id", ondelete="SET NULL"), nullable=True),
     Column("created_at", TIMESTAMP, nullable=False, server_default=func.now()),
     Column(
         "updated_at",

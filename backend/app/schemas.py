@@ -1,12 +1,16 @@
 from pydantic import BaseModel as PydanticBaseModel
 from typing import Any
+from typing import TypeVar, Generic, Union
 
 
 class BaseModel(PydanticBaseModel):
     pass
 
 
-class CustomResponse(BaseModel):
+T = TypeVar("T")
+
+
+class CustomResponse(BaseModel, Generic[T]):
     code: int
     message: str
-    data: dict | list | None
+    data: Union[T, None]

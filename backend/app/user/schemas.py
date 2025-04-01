@@ -28,20 +28,20 @@ class UserLogin(UserBase):
 
 class UserCreate(UserLogin):
     email: EmailStr
+    client_name: str | None
     client_id: UUID | None
 
 
 class ProfileUpdate(BaseModel):
-    avatar_url: str
-    full_name: str
+    avatar_url: str | None
+    full_name: str | None
 
 
 # Output Schemas
 class ProfileOut(ProfileUpdate):
-    id: UUID
     client_id: UUID
     user_id: UUID
-    status: str
-    last_login_at: datetime
+    status: str | None
+    last_login_at: datetime | None
     created_at: datetime
     updated_at: datetime

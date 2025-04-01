@@ -1,12 +1,14 @@
 import logging
 from contextlib import asynccontextmanager
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import ORJSONResponse
+from fastapi.exceptions import RequestValidationError
 from starlette.middleware.cors import CORSMiddleware
 
 from app.routes import api_router
 
 from app.config import settings
+from app.utils import error_response
 
 from app.db.redis import redis_config
 from app.db.postgresql import postgresql_config
@@ -44,6 +46,25 @@ app = FastAPI(
     openapi_url=f"{settings.API_V1_STR}/openapi.json",
     lifespan=lifespan,
 )
+
+
+# Exception handler for FastAPI reqeust validation exceptions
+# Note: Must use the pydantic schema inside the route parameters, otherwise it will trigger ValidationError from pydantic core
+# If you want to use pydantic schema inside the route functions, you need to add one more exception handler for ValidationError
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request: Request, exc: RequestValidationError):
+    formatted_errors = []
+    for error in exc.errors():
+        error_msg = error.get("msg")
+        if "ctx" in error and "error" in error["ctx"]:
+            error_msg = str(error["ctx"]["error"])
+        formatted_errors.append({error["loc"][1]: error_msg})
+    return error_response(status_code=422, message=formatted_errors)
+
+
+@app.exception_handler(HTTPException)
+async def http_exception_handler(request: Request, exc: HTTPException):
+    return error_response(status_code=exc.status_code, message=exc.detail)
 
 
 app.include_router(api_router, prefix=settings.API_V1_STR)

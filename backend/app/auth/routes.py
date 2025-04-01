@@ -7,125 +7,129 @@ from app.schemas import CustomResponse
 from app.auth.services import generate_token_cookie
 
 # Core
-from app.db.deps import WriteDbDep, SimpleDbDep
+from app.db.deps import WriteDbDep, RedisDep
 
 # from app.users.deps import UserDep
 from app.auth.deps import AccessDep
 
 # Users
-from app.user.schemas import UserCreate, ProfileOut
+from app.user.schemas import UserCreate, UserLogin, ProfileOut
 
-from app.user.services import create_user
+from app.user.services import (
+    create_user,
+    create_profile,
+    authenticate_user,
+    update_profile_login,
+    update_user_current_client,
+)
+
+from app.client.services import assign_client_owner, create_client
+
+from app.utils import response_model
 
 auth_router = APIRouter(tags=["Auth"])
 
 
 @auth_router.post(
-    "/register", status_code=status.HTTP_201_CREATED, response_model=CustomResponse
+    "/register",
+    status_code=status.HTTP_201_CREATED,
+    response_model=CustomResponse[ProfileOut],
+    responses={
+        status.HTTP_201_CREATED: response_model(
+            "Successful Response",
+            status.HTTP_201_CREATED,
+            "User created successfully",
+            {
+                "client_id": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
+                "user_id": "5fa85f64-5717-4562-b3fc-2c963f66afa2",
+                "status": "active",
+                "full_name": "test user",
+                "avatar_url": "https://www.gravatar.com/avatar/205e460b479e2e5b48aec07710c08d50",
+                "last_login_at": "2025-04-01T02:20:54.822654Z",
+                "created_at": "2025-04-01T02:20:54.822654",
+                "updated_at": "2025-04-01T02:20:54.822654",
+            },
+        ),
+        status.HTTP_422_UNPROCESSABLE_ENTITY: response_model(
+            "Validation Error",
+            status.HTTP_422_UNPROCESSABLE_ENTITY,
+            [
+                {"password": "Password must be at least 8 characters long"},
+                {"username": "Username must be at least 3 characters long"},
+            ],
+            None,
+        ),
+    },
 )
 async def register(
     db: WriteDbDep,
+    redis: RedisDep,
     response: ORJSONResponse,
     form_data: UserCreate,
-) -> ProfileOut:
+) -> CustomResponse[ProfileOut]:
     client_id = form_data.client_id
 
     # Create user
     user = await create_user(
         db, form_data.username, form_data.email, form_data.password
     )
+    # If client id is provided, our app will generate a client when user starts using the app. Registration is needed when user
+    # runs out of 10 times of free trial.
+    if client_id:
+        # Assign user to client as owner
+        await assign_client_owner(db, client_id, user.id)
+    else:
+        # Create a new client for the user
+        client = await create_client(db, form_data.client_name, user.id)
+        client_id = client.id
+
+    # Set client id to user current_client_id
+    await update_user_current_client(db, user.id, client_id)
+
+    # Create user profile
+    profile = await create_profile(db, client_id, user.id, user.username)
+
+    # Generate token and set cookies
+    await generate_token_cookie(
+        response,
+        redis,
+        str(client_id),
+        str(user.id),
+    )
+
+    return CustomResponse(
+        code=status.HTTP_201_CREATED,
+        message="User created successfully",
+        data=profile,
+    )
 
 
-#     """
-#     Registers a new user.
+@auth_router.post(
+    "/login",
+    response_model=CustomResponse[ProfileOut],
+)
+async def login(
+    db: WriteDbDep,
+    redis: RedisDep,
+    form_data: UserLogin,
+    response: ORJSONResponse,
+) -> CustomResponse[ProfileOut]:
+    # Validate user
+    user = await authenticate_user(db, form_data.username, form_data.password)
 
-#     This endpoint allows clients to create a new user account by providing a username,
-#     email, and password. Upon successful registration, a user object is returned and
-#     an authentication token is generated and set as an HTTP-only cookie.
+    # Update profile
+    profile = await update_profile_login(db, user.current_client_id, user.id)
 
-#     Args:<br>
-#         &nbsp;&nbsp;&nbsp;&nbsp;- db (DbDep): The database connection dependency.<br>
-#         &nbsp;&nbsp;&nbsp;&nbsp;- form_data (UserCreate): The form data containing the username,
-#         email, and password.<br>
-#         &nbsp;&nbsp;&nbsp;&nbsp;- response (ORJSONResponse): The HTTP response object.<br>
+    # Generate token and set cookies
+    await generate_token_cookie(
+        response,
+        redis,
+        str(user.current_client_id),
+        str(user.id),
+    )
 
-#     Returns:<br>
-#         &nbsp;&nbsp;&nbsp;&nbsp; 201: Created -> A response containing the created user object and
-#         an authentication token in an HTTP-only cookie.
-
-#     Raises:<br>
-#         &nbsp;&nbsp;&nbsp;&nbsp; 400: Bad Request -> User already exists or email already exists.<br>
-#         &nbsp;&nbsp;&nbsp;&nbsp; 422: Unprocessable Content -> Validation error for the form data.<br>
-
-#     """
-#     # Create user
-#     user = await create_user(
-#         db, form_data.username, form_data.email, form_data.password
-#     )
-
-#     # Generate token and set cookies
-#     await generate_token_cookie(db, str(user.get("id")), response)
-
-#     return User(**user).model_dump()
-
-
-# @auth_router.post(
-#     "/login",
-# )
-# async def login(
-#     write_db: WriteDbDep,
-#     simple_db: SimpleDbDep,
-#     form_data: UserLogin,
-#     response: ORJSONResponse,
-# ) -> User:
-#     """
-#     Logins a user
-
-#     This endpoint allows clients to log in a user by providing a username(email) and password.
-#     If the user is authenticated, an authentication token is generated and set as an
-#     HTTP-only cookie.
-
-#     Args:<br>
-#         &nbsp;&nbsp;&nbsp;&nbsp;- db (DbDep): The database connection dependency.<br>
-#         &nbsp;&nbsp;&nbsp;&nbsp;- form_data (UserCreate): The form data containing the username(email) and password.<br>
-#         &nbsp;&nbsp;&nbsp;&nbsp;- response (ORJSONResponse): The HTTP response object.<br>
-
-#     Returns:<br>
-#         &nbsp;&nbsp;&nbsp;&nbsp; 200: OK -> A response containing the authenticated user object and an authentication
-#         token in an HTTP-only cookie.
-
-#     Raises:<br>
-#         &nbsp;&nbsp;&nbsp;&nbsp; 401: Unauthorized -> Incorrect username or password.<br>
-#         &nbsp;&nbsp;&nbsp;&nbsp; 422: Unprocessable Content -> Validation error for the form data.<br>
-#     """
-#     # Validate user
-#     user = await authenticate_user(simple_db, form_data.username, form_data.password)
-
-#     # Generate token and set cookies
-#     await generate_token_cookie(write_db, str(user.get("id")), response)
-
-#     return User(**user).model_dump()
-
-
-# @auth_router.post("/logout", status_code=status.HTTP_204_NO_CONTENT)
-# async def logout(response: ORJSONResponse):
-#     """
-#     Logs out a user
-
-#     This endpoint allows clients to log out a user by clearing the authentication token
-#     cookie.
-
-#     Args:<br>
-#         &nbsp;&nbsp;&nbsp;&nbsp;- response (ORJSONResponse): The HTTP response object.<br>
-
-#     Returns:<br>
-#         &nbsp;&nbsp;&nbsp;&nbsp; 204: No Content -> User logged out successfully.<br>
-#     """
-#     # Clear cookies
-#     response.delete_cookie("access_token")
-#     response.delete_cookie("jti")
-
-
-# @auth_router.put("/reset-password")
-# async def reset_password(user: UserDep):
-#     pass
+    return CustomResponse(
+        code=status.HTTP_200_OK,
+        message="User logged in successfully",
+        data=profile,
+    )

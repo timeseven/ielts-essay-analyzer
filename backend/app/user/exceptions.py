@@ -20,3 +20,8 @@ class UserHTTPException(HTTPException):
 class UserBadRequest(UserHTTPException):
     STATUS_CODE = status.HTTP_400_BAD_REQUEST
     DETAIL = "Bad request"
+
+
+class UserNotAuthenticated(UserHTTPException):
+    STATUS_CODE = status.HTTP_401_UNAUTHORIZED
+    DETAIL = "Could not validate credentials"

@@ -5,10 +5,8 @@ class AuthConfig(BaseSettings):
     ALGORITHM: str = "HS256"
     ACCESS_SECRET_KEY: str
     REFRESH_SECRET_KEY: str
-    ACCESS_TOKEN_EXPIRE_MINUTES: int = (
-        60 * 24 * 1
-    )  # 60 minutes * 24 hours * 1 days = 1 days
-    REFRESH_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 7
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 15  # 15 mins
+    REFRESH_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 2  # 2 days
 
 
 auth_settings = AuthConfig()

@@ -1,5 +1,5 @@
+import json
 from typing import Annotated, Any, cast
-
 from fastapi import Cookie, Depends
 from fastapi.openapi.models import OAuthFlows
 from fastapi.responses import ORJSONResponse
@@ -67,11 +67,12 @@ class CookieJWTAuth(OAuth2):
     ):
         # If access token is not provided
         if access_token is None:
-            # Get refresh token
+            # Get refresh token from redis
             refresh_token = await get_refresh_token(redis, refresh_token)
             if refresh_token is None:
                 raise NotAuthenticated
             else:
+                refresh_token = json.loads(refresh_token)
                 # Generate new access token
                 client_id = str(refresh_token.get("client_id"))
                 user_id = str(refresh_token.get("user_id"))

@@ -17,6 +17,7 @@ class RedisConfig:
             port=self._port,
             decode_responses=self._decode_responses,
         )
+        print("Connected to Redis")
 
     async def disconnect(self):
         """Disconnect from Redis"""

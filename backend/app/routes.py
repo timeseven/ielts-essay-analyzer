@@ -8,4 +8,4 @@ api_router = APIRouter()
 
 
 api_router.include_router(auth_router, prefix="/auth")
-api_router.include_router(user_router, prefix="/users")
+api_router.include_router(user_router, prefix="/client/{client_id}/users")

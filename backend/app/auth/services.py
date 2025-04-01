@@ -1,5 +1,4 @@
-import jwt
-import uuid
+import json
 from databases import Database
 from redis.asyncio import Redis
 from fastapi.responses import ORJSONResponse
@@ -9,7 +8,9 @@ from app.auth.config import auth_settings
 from app.auth.utils import generate_token, set_token_cookies
 
 
-async def generate_token_cookie(response: ORJSONResponse, client_id: str, user_id: str):
+async def generate_token_cookie(
+    response: ORJSONResponse, redis: Redis, client_id: str, user_id: str
+):
     """
     Generate and store access and refresh tokens for the user, and set them in cookies.
 
@@ -43,11 +44,36 @@ async def generate_token_cookie(response: ORJSONResponse, client_id: str, user_i
         user_id,
     )
 
+    # Store refresh token
+    await save_refresh_token(
+        redis, refresh_token, refresh_expires_at, client_id, user_id
+    )
+
     # Set cookies
     set_token_cookies(
         response, access_token, access_expires_at, refresh_token, refresh_expires_at
     )
 
 
-async def get_refresh_token(redis: Redis, refresh_token: str) -> dict | None:
-    pass
+async def save_refresh_token(
+    redis: Redis,
+    refresh_token: str,
+    expires_in: int | datetime,
+    client_id: str,
+    user_id: str,
+):
+    """Save refresh_token"""
+    if isinstance(expires_in, datetime):
+        expires_in = expires_in - datetime.now(timezone.utc)
+    value = json.dumps({"client_id": client_id, "user_id": user_id})
+    await redis.setex(refresh_token, expires_in, value)
+
+
+async def get_refresh_token(redis: Redis, refresh_token: str) -> str | None:
+    """Get refresh_token"""
+    return await redis.get(refresh_token)
+
+
+async def delete_refresh_token(redis: Redis, refresh_token: str):
+    """Delete refresh_token"""
+    await redis.delete(refresh_token)

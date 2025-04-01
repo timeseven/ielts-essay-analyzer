@@ -27,6 +27,9 @@ User = Table(
     Column("hashed_password", String(512), nullable=False),
     Column("is_admin", Boolean, nullable=False, server_default=text("false")),
     Column(
+        "current_client_id", ForeignKey("clients.id", ondelete="CASCADE"), nullable=True
+    ),
+    Column(
         "created_at",
         TIMESTAMP(timezone=True),
         nullable=False,
