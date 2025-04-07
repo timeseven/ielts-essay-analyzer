@@ -1,79 +1,87 @@
-import json
+from uuid import UUID
+from pydantic import EmailStr
 from databases import Database
 from redis.asyncio import Redis
 from fastapi.responses import ORJSONResponse
-from datetime import datetime, timedelta, timezone
+from databases.backends.postgres import Record
 
-from app.auth.config import auth_settings
-from app.auth.utils import generate_token, set_token_cookies
+# Services
+from app.user.services import UserService
+from app.client.services import ClientService
 
-
-async def generate_token_cookie(
-    response: ORJSONResponse, redis: Redis, client_id: str, user_id: str
-):
-    """
-    Generate and store access and refresh tokens for the user, and set them in cookies.
-
-    This function generates both access and refresh tokens for a user, stores the refresh token in the database,
-    and sets both tokens in HTTP-only cookies for secure authentication. The access token is used for immediate
-    authentication, while the refresh token is used to obtain new access tokens when the current one expires.
-
-    Args:
-        db (Connection): The database connection to interact with the refresh tokens table.
-        user_id (str): The unique identifier of the user for whom the tokens are generated.
-        response (ORJSONResponse): The response object used to set the tokens as cookies.
-
-    """
-    # Create access token
-    access_token, access_expires_at = await generate_token(
-        "access_token",
-        auth_settings.ACCESS_SECRET_KEY,
-        auth_settings.ALGORITHM,
-        auth_settings.ACCESS_TOKEN_EXPIRE_MINUTES,
-        client_id,
-        user_id,
-    )
-
-    # Create refresh token
-    refresh_token, refresh_expires_at = await generate_token(
-        "refresh_token",
-        auth_settings.REFRESH_SECRET_KEY,
-        auth_settings.ALGORITHM,
-        auth_settings.REFRESH_TOKEN_EXPIRE_MINUTES,
-        client_id,
-        user_id,
-    )
-
-    # Store refresh token
-    await save_refresh_token(
-        redis, refresh_token, refresh_expires_at, client_id, user_id
-    )
-
-    # Set cookies
-    set_token_cookies(
-        response, access_token, access_expires_at, refresh_token, refresh_expires_at
-    )
+# Utils
+from app.auth.utils import generate_token_cookie
+from app.user.utils import authenticate_user
 
 
-async def save_refresh_token(
-    redis: Redis,
-    refresh_token: str,
-    expires_in: int | datetime,
-    client_id: str,
-    user_id: str,
-):
-    """Save refresh_token"""
-    if isinstance(expires_in, datetime):
-        expires_in = expires_in - datetime.now(timezone.utc)
-    value = json.dumps({"client_id": client_id, "user_id": user_id})
-    await redis.setex(refresh_token, expires_in, value)
+class AuthService:
+    def __init__(self, db: Database, redis: Redis, response: ORJSONResponse):
+        self.db = db
+        self.redis = redis
+        self.response = response
 
+    async def register(
+        self,
+        username: str,
+        email: EmailStr,
+        password: str,
+        client_name: str | None,
+        client_id: UUID | None,
+    ) -> Record:
+        user_service = UserService(self.db)
 
-async def get_refresh_token(redis: Redis, refresh_token: str) -> str | None:
-    """Get refresh_token"""
-    return await redis.get(refresh_token)
+        # Create user
+        user = await user_service.create_user(
+            username=username,
+            email=email,
+            password=password,
+        )
 
+        client_service = ClientService(self.db)
 
-async def delete_refresh_token(redis: Redis, refresh_token: str):
-    """Delete refresh_token"""
-    await redis.delete(refresh_token)
+        if client_id is None:
+            # Create client
+            client = await client_service.create_client(name=client_name)
+            client_id = client.id
+
+        # Set client id to user current_client_id
+        await user_service.update_user_current_client(user.id, client_id)
+
+        # Create profile
+        profile = await user_service.create_profile(
+            client_id=client_id,
+            user_id=user.id,
+            full_name=user.username,
+            is_client_owner=True,
+        )
+
+        # Generate token and set cookies
+        await generate_token_cookie(
+            self.response,
+            self.redis,
+            str(client_id),
+            str(user.id),
+        )
+
+        return profile
+
+    async def login(self, username: str, password: str) -> Record:
+        user_service = UserService(self.db)
+
+        # Validate user
+        user = await authenticate_user(self.db, username, password)
+
+        # Update profile
+        profile = await user_service.update_profile_login(
+            user.current_client_id, user.id
+        )
+
+        # Generate token and set cookies
+        await generate_token_cookie(
+            self.response,
+            self.redis,
+            str(user.current_client_id),
+            str(user.id),
+        )
+
+        return profile

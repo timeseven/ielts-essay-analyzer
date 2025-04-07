@@ -7,16 +7,12 @@ from fastapi.security import OAuth2
 
 from app.config import settings
 
+from app.db.deps import RedisDep
+
 # Auth
 from app.auth.config import auth_settings
-from app.auth.services import (
-    get_refresh_token,
-    set_token_cookies,
-)
-from app.auth.utils import generate_token
 from app.auth.exceptions import NotAuthenticated
-
-from app.db.deps import RedisDep
+from app.auth.utils import get_refresh_token, set_token_cookies, generate_token
 
 
 class CookieJWTAuth(OAuth2):
@@ -30,7 +26,7 @@ class CookieJWTAuth(OAuth2):
     Key Features:
     - Access Token Management: Retrieves access tokens from cookies and validates them.
     - Automatic Renewal: If the access token is missing, it attempts to renew and update access token in cookies
-      using a valid refresh token.
+      using a valid refresh token from redis.
     - OAuth2 Compatibility: Inherits from OAuth2, making it compatible with FastAPI security schemes.
 
     Attributes:
@@ -68,10 +64,10 @@ class CookieJWTAuth(OAuth2):
         # If access token is not provided
         if access_token is None:
             # Get refresh token from redis
-            refresh_token = await get_refresh_token(redis, refresh_token)
             if refresh_token is None:
                 raise NotAuthenticated
             else:
+                refresh_token = await get_refresh_token(redis, refresh_token)
                 refresh_token = json.loads(refresh_token)
                 # Generate new access token
                 client_id = str(refresh_token.get("client_id"))

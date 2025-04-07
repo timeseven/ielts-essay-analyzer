@@ -7,6 +7,7 @@ from alembic import context
 
 import app.client.models
 import app.user.models
+import app.essay.models
 
 from app.db.config import db_settings
 from app.models import metadata

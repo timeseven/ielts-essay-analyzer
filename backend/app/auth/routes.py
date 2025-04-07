@@ -1,30 +1,17 @@
 from fastapi import APIRouter, status
 from fastapi.responses import ORJSONResponse
 
-from app.schemas import CustomResponse
-
-# Auth
-from app.auth.services import generate_token_cookie
-
-# Core
+# Dependencies
 from app.db.deps import WriteDbDep, RedisDep
 
-# from app.users.deps import UserDep
-from app.auth.deps import AccessDep
-
-# Users
+# Schemas
+from app.schemas import CustomResponse
 from app.user.schemas import UserCreate, UserLogin, ProfileOut
 
-from app.user.services import (
-    create_user,
-    create_profile,
-    authenticate_user,
-    update_profile_login,
-    update_user_current_client,
-)
+# Services
+from app.auth.services import AuthService
 
-from app.client.services import assign_client_owner, create_client
-
+# Utils
 from app.utils import response_model
 
 auth_router = APIRouter(tags=["Auth"])
@@ -67,34 +54,14 @@ async def register(
     response: ORJSONResponse,
     form_data: UserCreate,
 ) -> CustomResponse[ProfileOut]:
-    client_id = form_data.client_id
+    auth_service = AuthService(db, redis, response)
 
-    # Create user
-    user = await create_user(
-        db, form_data.username, form_data.email, form_data.password
-    )
-    # If client id is provided, our app will generate a client when user starts using the app. Registration is needed when user
-    # runs out of 10 times of free trial.
-    if client_id:
-        # Assign user to client as owner
-        await assign_client_owner(db, client_id, user.id)
-    else:
-        # Create a new client for the user
-        client = await create_client(db, form_data.client_name, user.id)
-        client_id = client.id
-
-    # Set client id to user current_client_id
-    await update_user_current_client(db, user.id, client_id)
-
-    # Create user profile
-    profile = await create_profile(db, client_id, user.id, user.username)
-
-    # Generate token and set cookies
-    await generate_token_cookie(
-        response,
-        redis,
-        str(client_id),
-        str(user.id),
+    profile = await auth_service.register(
+        username=form_data.username,
+        email=form_data.email,
+        password=form_data.password,
+        client_name=form_data.client_name,
+        client_id=form_data.client_id,
     )
 
     return CustomResponse(
@@ -111,21 +78,13 @@ async def register(
 async def login(
     db: WriteDbDep,
     redis: RedisDep,
-    form_data: UserLogin,
     response: ORJSONResponse,
+    form_data: UserLogin,
 ) -> CustomResponse[ProfileOut]:
-    # Validate user
-    user = await authenticate_user(db, form_data.username, form_data.password)
+    auth_service = AuthService(db, redis, response)
 
-    # Update profile
-    profile = await update_profile_login(db, user.current_client_id, user.id)
-
-    # Generate token and set cookies
-    await generate_token_cookie(
-        response,
-        redis,
-        str(user.current_client_id),
-        str(user.id),
+    profile = await auth_service.login(
+        username=form_data.username, password=form_data.password
     )
 
     return CustomResponse(

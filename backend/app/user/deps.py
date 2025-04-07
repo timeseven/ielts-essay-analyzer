@@ -8,10 +8,9 @@ from databases.backends.postgres import Record
 # Config
 from app.auth.config import auth_settings
 
-# Deps
+# Dependencies
 from app.db.deps import SimpleDbDep
 from app.auth.deps import AccessDep
-
 
 # Exceptions
 from app.user.exceptions import UserNotAuthenticated

@@ -42,8 +42,8 @@ User = Table(
         server_default=func.now(),
         onupdate=func.now(),
     ),
-    Index("idx_users_username_created_at", "username", "created_at"),
-    Index("idx_users_email_created_at", "email", "created_at"),
+    Index("ix_users_username_created_at", "username", "created_at"),
+    Index("ix_users_email_created_at", "email", "created_at"),
 )
 
 STATUS = ENUM("pending", "invited", "active", "deactivated", name="status")
@@ -63,6 +63,7 @@ Profile = Table(
         nullable=False,
         primary_key=True,
     ),
+    Column("is_client_owner", Boolean, nullable=False, server_default=text("false")),
     Column("avatar_url", String(512), nullable=True),
     Column("full_name", String(255), nullable=True),
     Column("status", STATUS, nullable=False, server_default=text("'pending'")),
