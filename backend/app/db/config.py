@@ -1,5 +1,6 @@
-from app.config import BaseSettings
 from databases import DatabaseURL
+
+from app.config import BaseSettings
 
 
 class DbConfig(BaseSettings):

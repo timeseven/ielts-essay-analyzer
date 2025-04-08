@@ -1,12 +1,11 @@
 from typing import Literal
 
-from pydantic_settings import BaseSettings as PydanticBaseSettings, SettingsConfigDict
+from pydantic_settings import BaseSettings as PydanticBaseSettings
+from pydantic_settings import SettingsConfigDict
 
 
 class BaseSettings(PydanticBaseSettings):
-    model_config = SettingsConfigDict(
-        env_file=".env", env_file_encoding="utf-8", extra="ignore"
-    )
+    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 
 
 class Config(BaseSettings):

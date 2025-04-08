@@ -1,18 +1,15 @@
 import logging
 from contextlib import asynccontextmanager
-from fastapi import FastAPI, HTTPException, Request
-from fastapi.responses import ORJSONResponse
-from fastapi.exceptions import RequestValidationError
-from starlette.middleware.cors import CORSMiddleware
 
-from app.routes import api_router
+from fastapi import FastAPI, HTTPException, Request
+from fastapi.exceptions import RequestValidationError
+from fastapi.responses import ORJSONResponse
 
 from app.config import settings
-from app.utils import error_response
-
-from app.db.redis import redis_config
 from app.db.postgresql import postgresql_config
-
+from app.db.redis import redis_config
+from app.routes import api_router
+from app.utils import error_response
 
 logger = logging.getLogger(__name__)
 
@@ -49,8 +46,8 @@ app = FastAPI(
 
 
 # Exception handler for FastAPI reqeust validation exceptions
-# Note: Must use the pydantic schema inside the route parameters, otherwise it will trigger ValidationError from pydantic core
-# If you want to use pydantic schema inside the route functions, you need to add one more exception handler for ValidationError
+# Note: Must use the pydantic schema inside the route parameters,
+# otherwise it will trigger ValidationError from pydantic core
 @app.exception_handler(RequestValidationError)
 async def validation_exception_handler(request: Request, exc: RequestValidationError):
     formatted_errors = []

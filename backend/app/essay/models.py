@@ -1,19 +1,19 @@
 from sqlalchemy import (
     TIMESTAMP,
-    ForeignKey,
-    Text,
-    Column,
-    Index,
     CheckConstraint,
+    Column,
+    ForeignKey,
     ForeignKeyConstraint,
+    Index,
     Integer,
     Numeric,
     String,
     Table,
+    Text,
     func,
     text,
 )
-from sqlalchemy.dialects.postgresql import UUID, ENUM
+from sqlalchemy.dialects.postgresql import ENUM, UUID
 
 from app.models import metadata
 
@@ -159,9 +159,7 @@ Assessment = Table(
         server_default=func.now(),
         onupdate=func.now(),
     ),
-    CheckConstraint(
-        "overall_score >= 0 AND overall_score <= 9", name="check_overall_score_range"
-    ),
+    CheckConstraint("overall_score >= 0 AND overall_score <= 9", name="check_overall_score_range"),
     CheckConstraint(
         "task_achievement >= 0 AND task_achievement <= 9",
         name="check_task_achievement_range",

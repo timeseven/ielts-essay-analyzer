@@ -1,15 +1,15 @@
 from sqlalchemy import (
     TIMESTAMP,
-    ForeignKey,
     Boolean,
     Column,
+    ForeignKey,
     Index,
     String,
     Table,
     func,
     text,
 )
-from sqlalchemy.dialects.postgresql import UUID, ENUM
+from sqlalchemy.dialects.postgresql import ENUM, UUID
 
 from app.models import metadata
 
@@ -26,9 +26,7 @@ User = Table(
     Column("email", String(255), nullable=False, unique=True),
     Column("hashed_password", String(512), nullable=False),
     Column("is_admin", Boolean, nullable=False, server_default=text("false")),
-    Column(
-        "current_client_id", ForeignKey("clients.id", ondelete="CASCADE"), nullable=True
-    ),
+    Column("current_client_id", ForeignKey("clients.id", ondelete="CASCADE"), nullable=True),
     Column(
         "created_at",
         TIMESTAMP(timezone=True),

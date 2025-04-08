@@ -17,3 +17,6 @@ wheels/
 
 # misc
 .DS_Store
+
+# test
+# tests/

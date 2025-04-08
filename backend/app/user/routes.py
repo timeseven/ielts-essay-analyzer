@@ -1,7 +1,7 @@
 from fastapi import APIRouter, status
-from app.user.deps import ProfileDep
 
 from app.schemas import CustomResponse
+from app.user.deps import ProfileDep
 from app.user.schemas import ProfileOut
 
 user_router = APIRouter(tags=["User"])
@@ -11,6 +11,14 @@ user_router = APIRouter(tags=["User"])
 async def get_profile(
     profile: ProfileDep,
 ):
+    """
+    Retrieves the current user's profile information.
+
+    Args:
+
+    Returns:
+        CustomResponse[ProfileOut]: The current user's profile information.
+    """
     return CustomResponse(
         code=status.HTTP_200_OK,
         message="Success",

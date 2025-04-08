@@ -16,9 +16,7 @@ def final_response(
 
 # Used for error responses
 def error_response(status_code: int, message: str | list | None = None):
-    return ORJSONResponse(
-        content=final_response(status_code, message), status_code=status_code
-    )
+    return ORJSONResponse(content=final_response(status_code, message), status_code=status_code)
 
 
 # Used for Swagger docs
@@ -30,7 +28,5 @@ def response_model(
 ):
     return {
         "description": description,
-        "content": {
-            "application/json": {"example": final_response(status_code, message, data)}
-        },
+        "content": {"application/json": {"example": final_response(status_code, message, data)}},
     }

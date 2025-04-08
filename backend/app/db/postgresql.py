@@ -13,16 +13,15 @@ class PostgresqlConfig:
         max_inactive_connection_lifetime: float,
     ):
         """
-        Initialize the database parameters
+        Initialize a PostgresqlConfig instance.
 
         Args:
-            - url (str): Database connection string
-            The keyword arguments below are used for postgresql.
-            Available keyword arguments may differ for other databases.
-            - min_size (int): Minimum number of connections
-            - max_size (int): Maximum number of connections
-            - timeout (float): Connection timeout in seconds
-            - max_inactive_connection_lifetime (float): Maximum inactive connection lifetime in seconds
+            url (DatabaseURL | str): The URL of the PostgreSQL database.
+            min_size (int): The minimum number of connections to keep open in the connection pool.
+            max_size (int): The maximum number of connections to keep open in the connection pool.
+            timeout (float): The timeout in seconds for acquiring a connection from the pool.
+            max_inactive_connection_lifetime (float): The maximum lifetime of an inactive connection
+            in the connection pool.
         """
         self.db_pool = Database(
             url,
@@ -33,11 +32,29 @@ class PostgresqlConfig:
         )
 
     async def connect(self):
-        """Connect to the database"""
+        """
+        Connect to the PostgreSQL database asynchronously.
+
+        This function is a coroutine that connects to the PostgreSQL
+        database asynchronously. It is a part of the Database class
+        and is used to create a connection pool to the database.
+
+        Returns:
+            None
+        """
         await self.db_pool.connect()
 
     async def disconnect(self):
-        """Disconnect from the database"""
+        """
+        Disconnect from the PostgreSQL database asynchronously.
+
+        This function is a coroutine that disconnects from the PostgreSQL
+        database asynchronously. It is a part of the Database class
+        and is used to close all connections in the connection pool to the database.
+
+        Returns:
+            None
+        """
         await self.db_pool.disconnect()
 
 

@@ -1,18 +1,11 @@
 from fastapi import APIRouter, status
 from fastapi.responses import ORJSONResponse
 
-# Dependencies
-from app.db.deps import WriteDbDep, RedisDep
-
-# Schemas
-from app.schemas import CustomResponse
-from app.user.schemas import UserCreate, UserLogin, ProfileOut
-
-# Services
 from app.auth.services import AuthService
-
-# Utils
-from app.utils import response_model
+from app.auth.swagger import login_responses, register_responses
+from app.db.deps import RedisDep, WriteDbDep
+from app.schemas import CustomResponse
+from app.user.schemas import ProfileOut, UserCreate, UserLogin
 
 auth_router = APIRouter(tags=["Auth"])
 
@@ -21,32 +14,7 @@ auth_router = APIRouter(tags=["Auth"])
     "/register",
     status_code=status.HTTP_201_CREATED,
     response_model=CustomResponse[ProfileOut],
-    responses={
-        status.HTTP_201_CREATED: response_model(
-            "Successful Response",
-            status.HTTP_201_CREATED,
-            "User created successfully",
-            {
-                "client_id": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
-                "user_id": "5fa85f64-5717-4562-b3fc-2c963f66afa2",
-                "status": "active",
-                "full_name": "test user",
-                "avatar_url": "https://www.gravatar.com/avatar/205e460b479e2e5b48aec07710c08d50",
-                "last_login_at": "2025-04-01T02:20:54.822654Z",
-                "created_at": "2025-04-01T02:20:54.822654",
-                "updated_at": "2025-04-01T02:20:54.822654",
-            },
-        ),
-        status.HTTP_422_UNPROCESSABLE_ENTITY: response_model(
-            "Validation Error",
-            status.HTTP_422_UNPROCESSABLE_ENTITY,
-            [
-                {"password": "Password must be at least 8 characters long"},
-                {"username": "Username must be at least 3 characters long"},
-            ],
-            None,
-        ),
-    },
+    responses=register_responses,
 )
 async def register(
     db: WriteDbDep,
@@ -54,6 +22,29 @@ async def register(
     response: ORJSONResponse,
     form_data: UserCreate,
 ) -> CustomResponse[ProfileOut]:
+    """
+    Registers a new user and creates an associated profile.
+
+    This endpoint is responsible for registering a new user by creating a user
+    profile in the database. It accepts user credentials and client information,
+    and returns a custom response with the user's profile data upon successful
+    registration.
+
+    Args:
+        db (WriteDbDep): Database dependency for executing database operations.
+        redis (RedisDep): Redis dependency for caching and session management.
+        response (ORJSONResponse): FastAPI response object for setting response data.
+        form_data (UserCreate): Data required to create a new user, including
+            username, email, password, client name, and client ID.
+
+    Returns:
+        CustomResponse[ProfileOut]: A custom response containing the newly created
+        user's profile information.
+
+    Responses:
+        201: User created successfully with profile details.
+        422: Validation errors if the input data does not meet specified criteria.
+    """
     auth_service = AuthService(db, redis, response)
 
     profile = await auth_service.register(
@@ -74,6 +65,7 @@ async def register(
 @auth_router.post(
     "/login",
     response_model=CustomResponse[ProfileOut],
+    responses=login_responses,
 )
 async def login(
     db: WriteDbDep,
@@ -81,11 +73,30 @@ async def login(
     response: ORJSONResponse,
     form_data: UserLogin,
 ) -> CustomResponse[ProfileOut]:
+    """
+    Logs in a user and returns the user's profile information.
+
+    This endpoint is responsible for authenticating a user and returning the user's
+    profile information upon successful login.
+
+    Args:
+        db (WriteDbDep): Database dependency for executing database operations.
+        redis (RedisDep): Redis dependency for caching and session management.
+        response (ORJSONResponse): FastAPI response object for setting response data.
+        form_data (UserLogin): Data required to login a user, including
+            username and password.
+
+    Returns:
+        CustomResponse[ProfileOut]: A custom response containing the logged in
+        user's profile information.
+
+    Responses:
+        200: User logged in successfully with profile details.
+        422: Validation errors if the input data does not meet specified criteria.
+    """
     auth_service = AuthService(db, redis, response)
 
-    profile = await auth_service.login(
-        username=form_data.username, password=form_data.password
-    )
+    profile = await auth_service.login(username=form_data.username, password=form_data.password)
 
     return CustomResponse(
         code=status.HTTP_200_OK,
